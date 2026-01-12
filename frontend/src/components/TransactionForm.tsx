@@ -260,17 +260,7 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                     </div>
 
                     <div className="input-group">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <label htmlFor="settlementDate">Settlement Date</label>
-                            <label style={{ fontSize: '0.8rem', fontWeight: 'normal', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={settlementSameAsTrade}
-                                    onChange={(e) => setSettlementSameAsTrade(e.target.checked)}
-                                />
-                                Same as Trade Date
-                            </label>
-                        </div>
+                        <label htmlFor="settlementDate">Settlement Date</label>
                         <input
                             type="date"
                             id="settlementDate"
@@ -280,6 +270,16 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                             onChange={handleChange}
                             disabled={settlementSameAsTrade}
                         />
+                        <div style={{ marginTop: '0.25rem' }}>
+                            <label style={{ fontSize: '0.8rem', fontWeight: 'normal', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={settlementSameAsTrade}
+                                    onChange={(e) => setSettlementSameAsTrade(e.target.checked)}
+                                />
+                                Same as Trade Date
+                            </label>
+                        </div>
                     </div>
 
                     <div className="input-group">

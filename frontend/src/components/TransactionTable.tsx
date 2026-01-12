@@ -26,7 +26,9 @@ function formatNumber(value: number | undefined | null, decimals: number = 2): s
 }
 
 function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString('en-CA');
+    // Backend returns ISO strings. We want to display the date part exactly as stored.
+    // split('T')[0] is the safest way to get YYYY-MM-DD regardless of local timezone.
+    return dateStr.split('T')[0];
 }
 
 const TYPE_LABELS: Record<string, { label: string; className: string }> = {
