@@ -1,4 +1,4 @@
-import { useState, FormEvent, useEffect, useCallback } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { Security, Account, CreateTransactionInput, Transaction, getFxRate } from '../services/api';
 import '../styles/TransactionForm.css';
 
@@ -255,6 +255,7 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                             className="input"
                             value={formData.date}
                             onChange={handleChange}
+                            onClick={(e) => e.currentTarget.showPicker()}
                             required
                         />
                     </div>
@@ -268,6 +269,7 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                             className="input"
                             value={formData.settlementDate}
                             onChange={handleChange}
+                            onClick={(e) => e.currentTarget.showPicker()}
                             disabled={settlementSameAsTrade}
                         />
                         <div style={{ marginTop: '0.25rem' }}>

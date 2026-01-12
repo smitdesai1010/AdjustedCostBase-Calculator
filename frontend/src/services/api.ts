@@ -79,6 +79,7 @@ export interface CreateTransactionInput {
     ratio?: number;
     rocPerShare?: number;
     notes?: string;
+    fxRate?: number;
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
