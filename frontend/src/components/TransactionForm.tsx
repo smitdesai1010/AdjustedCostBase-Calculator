@@ -1,5 +1,5 @@
-import { useState, FormEvent, useEffect } from 'react';
-import { Security, Account, CreateTransactionInput, Transaction } from '../services/api';
+import { useState, FormEvent, useEffect, useCallback } from 'react';
+import { Security, Account, CreateTransactionInput, Transaction, getFxRate } from '../services/api';
 import '../styles/TransactionForm.css';
 
 interface TransactionFormProps {
@@ -41,9 +41,55 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
     };
 
     const [formData, setFormData] = useState(defaultFormData);
+    const [settlementSameAsTrade, setSettlementSameAsTrade] = useState(true);
+    const [fxRate, setFxRate] = useState<number | null>(null);
+    const [manualFxRate, setManualFxRate] = useState('');
+    const [feeCurrency, setFeeCurrency] = useState<'CAD' | 'USD' | string>('CAD'); // Default to CAD initially, will update based on security
+
+    // Sync settlement date if checkbox is checked
+    useEffect(() => {
+        if (settlementSameAsTrade) {
+            setFormData(prev => ({ ...prev, settlementDate: prev.date }));
+        }
+    }, [formData.date, settlementSameAsTrade]);
+
+    // Fetch FX rate when date or security changes
+    useEffect(() => {
+        const fetchRate = async () => {
+            const security = securities.find(s => s.id === formData.securityId);
+            if (!security || security.currency === 'CAD' || !formData.date) {
+                setFxRate(null);
+                setManualFxRate('');
+                return;
+            }
+
+            // Sync fee currency to security currency by default
+            if (!initialData) {
+                setFeeCurrency(security.currency);
+            }
+
+            try {
+                // Determine relevant date: settlement date if set, otherwise trade date
+                // Usually FX is based on settlement date? User asked for "date" in requirements for current FX ratio.
+                // Standard practice is settlement date for FX, but let's use trade date if settlement is not set or logic implies.
+                // Requirement says "based on the currency selected/CAD and the date".
+                const dateToUse = formData.settlementDate || formData.date;
+                const rateData = await getFxRate(dateToUse, security.currency, 'CAD');
+                setFxRate(rateData.rate);
+                // Don't auto-overwrite manual input if it's already set by user? 
+                // For simplicity, if manual is empty, maybe don't fill it? Or display the fetched rate as hint?
+                // We'll display fetched rate separately.
+            } catch (err) {
+                console.warn('Failed to fetch FX rate', err);
+                setFxRate(null);
+            }
+        };
+        fetchRate();
+    }, [formData.date, formData.settlementDate, formData.securityId, securities]);
 
     useEffect(() => {
         if (initialData) {
+            const security = securities.find(s => s.id === initialData.securityId);
             setFormData({
                 date: initialData.date.split('T')[0],
                 settlementDate: initialData.settlementDate ? initialData.settlementDate.split('T')[0] : '',
@@ -56,10 +102,30 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                 ratio: initialData.ratio?.toString() || '',
                 notes: initialData.notes || ''
             });
+
+            // Initialize settlement checkbox
+            if (initialData.settlementDate && initialData.date) {
+                const traded = initialData.date.split('T')[0];
+                const setd = initialData.settlementDate.split('T')[0];
+                setSettlementSameAsTrade(traded === setd);
+            }
+
+            // Initialize FX
+            if (initialData.fxRate && security && security.currency !== 'CAD') {
+                setManualFxRate(initialData.fxRate.toString());
+            }
+
+            // Guess fee currency? Backend stores fees in CAD.
+            // We'll leave it as CAD for editing to avoid reverse calc errors.
+            setFeeCurrency('CAD');
         } else {
             setFormData(defaultFormData);
+            setSettlementSameAsTrade(true);
+            setFxRate(null);
+            setManualFxRate('');
+            setFeeCurrency('CAD');
         }
-    }, [initialData]);
+    }, [initialData, securities]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -84,6 +150,23 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
             setLoading(true);
             setError(null);
 
+            let calculatedFees = formData.fees ? parseFloat(formData.fees) : undefined;
+            const security = securities.find(s => s.id === formData.securityId);
+
+            // Convert fees if not CAD
+            let finalFxRate = 1;
+
+            if (security && security.currency !== 'CAD') {
+                // Use manual rate if provided, otherwise fetched rate, otherwise 1
+                const rateToUse = manualFxRate ? parseFloat(manualFxRate) : fxRate;
+                if (rateToUse) {
+                    finalFxRate = rateToUse;
+                    if (feeCurrency !== 'CAD' && calculatedFees) {
+                        calculatedFees = calculatedFees * finalFxRate;
+                    }
+                }
+            }
+
             const data: CreateTransactionInput = {
                 date: formData.date,
                 settlementDate: formData.settlementDate || formData.date,
@@ -92,9 +175,10 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                 accountId: formData.accountId,
                 quantity: parseFloat(formData.quantity) || 0,
                 price: parseFloat(formData.price) || 0,
-                fees: formData.fees ? parseFloat(formData.fees) : undefined,
+                fees: calculatedFees,
                 ratio: formData.ratio ? parseFloat(formData.ratio) : undefined,
-                notes: formData.notes || undefined
+                notes: formData.notes || undefined,
+                fxRate: security?.currency !== 'CAD' && (manualFxRate || fxRate) ? (manualFxRate ? parseFloat(manualFxRate) : fxRate!) : undefined
             };
 
             await onSubmit(data);
@@ -102,6 +186,9 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
             if (!initialData) {
                 // Only reset if creating new
                 setFormData(defaultFormData);
+                setSettlementSameAsTrade(true);
+                setManualFxRate('');
+                setFxRate(null);
             }
 
             setSuccess(true);
@@ -116,6 +203,8 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
     const selectedType = TRANSACTION_TYPES.find(t => t.value === formData.type);
     const showRatio = ['split', 'consolidation'].includes(formData.type);
     const showQuantityPrice = !['dividend'].includes(formData.type);
+    const selectedSecurity = securities.find(s => s.id === formData.securityId);
+    const isForeign = selectedSecurity && selectedSecurity.currency !== 'CAD';
 
     return (
         <div className="transaction-form card">
@@ -171,7 +260,17 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                     </div>
 
                     <div className="input-group">
-                        <label htmlFor="settlementDate">Settlement Date</label>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <label htmlFor="settlementDate">Settlement Date</label>
+                            <label style={{ fontSize: '0.8rem', fontWeight: 'normal', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={settlementSameAsTrade}
+                                    onChange={(e) => setSettlementSameAsTrade(e.target.checked)}
+                                />
+                                Same as Trade Date
+                            </label>
+                        </div>
                         <input
                             type="date"
                             id="settlementDate"
@@ -179,9 +278,8 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                             className="input"
                             value={formData.settlementDate}
                             onChange={handleChange}
-                            placeholder="Same as trade date"
+                            disabled={settlementSameAsTrade}
                         />
-                        <span className="input-hint">For FX rate lookup (optional)</span>
                     </div>
 
                     <div className="input-group">
@@ -244,18 +342,33 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                                 <label htmlFor="price">
                                     {formData.type === 'roc' ? 'RoC per Share' : 'Price per Share'}
                                 </label>
-                                <input
-                                    type="number"
-                                    id="price"
-                                    name="price"
-                                    className="input"
-                                    value={formData.price}
-                                    onChange={handleChange}
-                                    step="0.0001"
-                                    min="0"
-                                    placeholder="0.00"
-                                    required
-                                />
+                                <div style={{ position: 'relative' }}>
+                                    <input
+                                        type="number"
+                                        id="price"
+                                        name="price"
+                                        className="input"
+                                        value={formData.price}
+                                        onChange={handleChange}
+                                        step="0.0001"
+                                        min="0"
+                                        placeholder="0.00"
+                                        required
+                                        style={{ paddingRight: '3rem' }}
+                                    />
+                                    {selectedSecurity && (
+                                        <span style={{
+                                            position: 'absolute',
+                                            right: '0.75rem',
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            color: 'var(--color-text-muted)',
+                                            fontSize: '0.875rem'
+                                        }}>
+                                            {selectedSecurity.currency}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </>
                     )}
@@ -284,19 +397,56 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                     )}
 
                     <div className="input-group">
-                        <label htmlFor="fees">Commission/Fees (CAD)</label>
-                        <input
-                            type="number"
-                            id="fees"
-                            name="fees"
-                            className="input"
-                            value={formData.fees}
-                            onChange={handleChange}
-                            step="0.01"
-                            min="0"
-                            placeholder="0.00"
-                        />
+                        <label htmlFor="fees">Commission/Fees</label>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <input
+                                type="number"
+                                id="fees"
+                                name="fees"
+                                className="input"
+                                value={formData.fees}
+                                onChange={handleChange}
+                                step="0.01"
+                                min="0"
+                                placeholder="0.00"
+                                style={{ flex: 1 }}
+                            />
+                            {isForeign && (
+                                <select
+                                    className="input"
+                                    style={{ width: '80px', padding: '0.5rem' }}
+                                    value={feeCurrency}
+                                    onChange={(e) => setFeeCurrency(e.target.value)}
+                                >
+                                    <option value={selectedSecurity.currency}>{selectedSecurity.currency}</option>
+                                    <option value="CAD">CAD</option>
+                                </select>
+                            )}
+                            {!isForeign && (
+                                <span className="input" style={{ width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--color-background-subtle)' }}>
+                                    CAD
+                                </span>
+                            )}
+                        </div>
                     </div>
+
+                    {isForeign && (
+                        <div className="input-group">
+                            <label htmlFor="fxRate">FX Rate ({selectedSecurity.currency} to CAD)</label>
+                            <input
+                                type="number"
+                                id="fxRate"
+                                value={manualFxRate}
+                                onChange={(e) => setManualFxRate(e.target.value)}
+                                placeholder={fxRate ? fxRate.toFixed(4) : "Enter rate..."}
+                                className="input"
+                                step="any"
+                            />
+                            <span className="input-hint">
+                                {fxRate ? `Current rate: ${fxRate.toFixed(6)}` : 'Enter custom rate or leave blank to auto-fetch'}
+                            </span>
+                        </div>
+                    )}
 
                     <div className="input-group full-width">
                         <label htmlFor="notes">Notes</label>

@@ -27,6 +27,7 @@ export interface CreateTransactionInput {
     newSecurityAcbPercent?: number;
     cashPerShare?: number;
     notes?: string;
+    fxRate?: number;
 }
 
 /**
@@ -67,7 +68,10 @@ export class TransactionService {
         // Get FX rate if needed
         const settlementDate = new Date(input.settlementDate ?? input.date);
         let fxRate = 1;
-        if (security.currency !== 'CAD') {
+
+        if (input.fxRate !== undefined) {
+            fxRate = input.fxRate;
+        } else if (security.currency !== 'CAD') {
             try {
                 fxRate = await fxRateService.getRate(settlementDate, security.currency, 'CAD');
             } catch (error) {
@@ -128,7 +132,7 @@ export class TransactionService {
             if (slResult.isSuperficial) {
                 transaction.flags = ['superficial_loss'];
                 transaction.calculationDetails = {
-                    ...transaction.calculationDetails,
+                    ...(transaction.calculationDetails as Record<string, unknown>),
                     superficialLoss: slResult
                 };
             }
@@ -241,7 +245,8 @@ export class TransactionService {
             price: input.price ?? existing.price,
             fees: input.fees ?? existing.fees,
             ratio: input.ratio ?? existing.ratio,
-            notes: input.notes ?? existing.notes
+            notes: input.notes ?? existing.notes,
+            fxRate: input.fxRate ?? existing.fxRate
         };
 
         await this.deleteTransaction(id);
@@ -316,7 +321,7 @@ export class TransactionService {
                 if (slResult.isSuperficial) {
                     txn.flags = ['superficial_loss'];
                     txn.calculationDetails = {
-                        ...txn.calculationDetails,
+                        ...(txn.calculationDetails as Record<string, unknown>),
                         superficialLoss: slResult
                     };
                 } else {

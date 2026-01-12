@@ -87,15 +87,15 @@ function TransactionTable({ transactions, onDelete, onEdit }: TransactionTablePr
                         <tr>
                             <th>Date</th>
                             <th>Type</th>
-                            <th>Security</th>
-                            <th>Account</th>
-                            <th className="text-right">Qty</th>
+                            <th className="text-right">Amount</th>
+                            <th className="text-right">Shares</th>
                             <th className="text-right">Price</th>
-                            <th className="text-right">Fees</th>
-                            <th className="text-right">ACB Before</th>
-                            <th className="text-right">ACB After</th>
+                            <th className="text-right">Comm.</th>
                             <th className="text-right">Gain/Loss</th>
-                            <th>Flags</th>
+                            <th className="text-right">Share Bal</th>
+                            <th className="text-right">Δ ACB</th>
+                            <th className="text-right">New ACB</th>
+                            <th className="text-right">ACB/Share</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -104,6 +104,17 @@ function TransactionTable({ transactions, onDelete, onEdit }: TransactionTablePr
                             const typeInfo = TYPE_LABELS[txn.type] || { label: txn.type.toUpperCase(), className: 'badge-info' };
                             const hasSuperficialLoss = txn.flags?.includes('superficial_loss');
                             const isExpanded = expandedId === txn.id;
+
+                            // Calculate Amount (Cash Flow approx)
+                            // Ideally we'd have this from backend or calculate it: (Quantity * Price * FX) + Fees?
+                            // Or just delta ACB? For now let's show Price * Shares * FX
+                            const amount = Math.abs(txn.quantity * txn.price * txn.fxRate);
+
+                            // Calculate Change in ACB
+                            const deltaAcb = txn.acbAfter - txn.acbBefore;
+
+                            // ACB per share
+                            const acbPerShare = txn.sharesAfter !== 0 ? txn.acbAfter / txn.sharesAfter : 0;
 
                             return (
                                 <>
@@ -117,39 +128,24 @@ function TransactionTable({ transactions, onDelete, onEdit }: TransactionTablePr
                                                 {typeInfo.label}
                                             </span>
                                         </td>
-                                        <td>
-                                            <div className="security-cell">
-                                                <span className="symbol">{txn.security?.symbol || '-'}</span>
-                                                {txn.priceCurrency !== 'CAD' && (
-                                                    <span className="currency-badge">{txn.priceCurrency}</span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td>{txn.account?.name || '-'}</td>
+                                        <td className="text-right font-mono">{formatCurrency(amount)}</td>
                                         <td className="text-right font-mono">{formatNumber(txn.quantity, 4)}</td>
                                         <td className="text-right font-mono">
                                             {formatCurrency(txn.price)}
-                                            {txn.fxRate !== 1 && (
-                                                <div className="fx-rate">
-                                                    FX: {formatNumber(txn.fxRate, 4)}
-                                                </div>
+                                            {txn.priceCurrency !== 'CAD' && (
+                                                <span className="text-xs text-muted ml-1">{txn.priceCurrency}</span>
                                             )}
                                         </td>
                                         <td className="text-right font-mono">{formatCurrency(txn.fees)}</td>
-                                        <td className="text-right font-mono">{formatCurrency(txn.acbBefore)}</td>
-                                        <td className="text-right font-mono">{formatCurrency(txn.acbAfter)}</td>
                                         <td className={`text-right font-mono ${txn.capitalGain !== undefined && txn.capitalGain !== null ? (txn.capitalGain >= 0 ? 'text-success' : 'text-error') : ''}`}>
                                             {txn.capitalGain !== undefined && txn.capitalGain !== null
                                                 ? formatCurrency(txn.capitalGain)
                                                 : '-'}
                                         </td>
-                                        <td>
-                                            {hasSuperficialLoss && (
-                                                <span className="badge badge-warning" title="Superficial Loss">
-                                                    ⚠️ SL
-                                                </span>
-                                            )}
-                                        </td>
+                                        <td className="text-right font-mono">{formatNumber(txn.sharesAfter, 4)}</td>
+                                        <td className="text-right font-mono">{formatCurrency(deltaAcb)}</td>
+                                        <td className="text-right font-mono">{formatCurrency(txn.acbAfter)}</td>
+                                        <td className="text-right font-mono">{formatCurrency(acbPerShare)}</td>
                                         <td>
                                             <div className="row-actions">
                                                 <button

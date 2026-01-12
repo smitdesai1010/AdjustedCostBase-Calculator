@@ -51,7 +51,8 @@ router.post('/', async (req: Request, res: Response) => {
                 ? parseFloat(req.body.newSecurityAcbPercent)
                 : undefined,
             cashPerShare: req.body.cashPerShare ? parseFloat(req.body.cashPerShare) : undefined,
-            notes: req.body.notes
+            notes: req.body.notes,
+            fxRate: req.body.fxRate ? parseFloat(req.body.fxRate) : undefined
         };
 
         // Validate required fields
@@ -95,7 +96,9 @@ router.put('/:id', async (req: Request, res: Response) => {
         if (req.body.price !== undefined) input.price = parseFloat(req.body.price);
         if (req.body.fees !== undefined) input.fees = parseFloat(req.body.fees);
         if (req.body.ratio !== undefined) input.ratio = parseFloat(req.body.ratio);
+        if (req.body.ratio !== undefined) input.ratio = parseFloat(req.body.ratio);
         if (req.body.notes !== undefined) input.notes = req.body.notes;
+        if (req.body.fxRate !== undefined) input.fxRate = parseFloat(req.body.fxRate);
 
         const transaction = await transactionService.updateTransaction(req.params.id, input);
         res.json(transaction);
