@@ -6,6 +6,7 @@ import '../styles/TransactionTable.css';
 interface TransactionTableProps {
     transactions: Transaction[];
     onDelete: (id: string) => Promise<void>;
+    onEdit: (transaction: Transaction) => void;
 }
 
 function formatCurrency(value: number | undefined | null): string {
@@ -42,7 +43,7 @@ const TYPE_LABELS: Record<string, { label: string; className: string }> = {
     transfer_out: { label: 'OUT', className: 'badge-error' }
 };
 
-function TransactionTable({ transactions, onDelete }: TransactionTableProps) {
+function TransactionTable({ transactions, onDelete, onEdit }: TransactionTableProps) {
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -157,6 +158,13 @@ function TransactionTable({ transactions, onDelete }: TransactionTableProps) {
                                                     title="View calculation details"
                                                 >
                                                     {isExpanded ? '▲' : '▼'}
+                                                </button>
+                                                <button
+                                                    className="btn btn-ghost btn-sm"
+                                                    onClick={() => onEdit(txn)}
+                                                    title="Edit transaction"
+                                                >
+                                                    ✎
                                                 </button>
                                                 <button
                                                     className="btn btn-ghost btn-sm text-error"

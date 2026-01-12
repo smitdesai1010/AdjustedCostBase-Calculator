@@ -1,11 +1,13 @@
-import { useState, FormEvent } from 'react';
-import { Security, Account, CreateTransactionInput } from '../services/api';
+import { useState, FormEvent, useEffect } from 'react';
+import { Security, Account, CreateTransactionInput, Transaction } from '../services/api';
 import '../styles/TransactionForm.css';
 
 interface TransactionFormProps {
     securities: Security[];
     accounts: Account[];
     onSubmit: (data: CreateTransactionInput) => Promise<void>;
+    initialData?: Transaction | null;
+    onCancel?: () => void;
 }
 
 const TRANSACTION_TYPES = [
@@ -20,12 +22,12 @@ const TRANSACTION_TYPES = [
     { value: 'transfer_out', label: 'Transfer Out', description: 'Transfer to another account' }
 ];
 
-function TransactionForm({ securities, accounts, onSubmit }: TransactionFormProps) {
+function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel }: TransactionFormProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
-    const [formData, setFormData] = useState({
+    const defaultFormData = {
         date: new Date().toISOString().split('T')[0],
         settlementDate: '',
         type: 'buy',
@@ -36,7 +38,28 @@ function TransactionForm({ securities, accounts, onSubmit }: TransactionFormProp
         fees: '',
         ratio: '',
         notes: ''
-    });
+    };
+
+    const [formData, setFormData] = useState(defaultFormData);
+
+    useEffect(() => {
+        if (initialData) {
+            setFormData({
+                date: initialData.date.split('T')[0],
+                settlementDate: initialData.settlementDate ? initialData.settlementDate.split('T')[0] : '',
+                type: initialData.type,
+                securityId: initialData.securityId,
+                accountId: initialData.accountId,
+                quantity: initialData.quantity.toString(),
+                price: initialData.price.toString(),
+                fees: initialData.fees.toString(),
+                ratio: initialData.ratio?.toString() || '',
+                notes: initialData.notes || ''
+            });
+        } else {
+            setFormData(defaultFormData);
+        }
+    }, [initialData]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -76,19 +99,15 @@ function TransactionForm({ securities, accounts, onSubmit }: TransactionFormProp
 
             await onSubmit(data);
 
-            // Reset form
-            setFormData(prev => ({
-                ...prev,
-                quantity: '',
-                price: '',
-                fees: '',
-                ratio: '',
-                notes: ''
-            }));
+            if (!initialData) {
+                // Only reset if creating new
+                setFormData(defaultFormData);
+            }
+
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to create transaction');
+            setError(err instanceof Error ? err.message : 'Failed to save transaction');
         } finally {
             setLoading(false);
         }
@@ -101,7 +120,7 @@ function TransactionForm({ securities, accounts, onSubmit }: TransactionFormProp
     return (
         <div className="transaction-form card">
             <div className="card-header">
-                <h2 className="card-title">Add Transaction</h2>
+                <h2 className="card-title">{initialData ? 'Edit Transaction' : 'Add Transaction'}</h2>
             </div>
 
             <form onSubmit={handleSubmit}>
@@ -301,9 +320,14 @@ function TransactionForm({ securities, accounts, onSubmit }: TransactionFormProp
                                 Processing...
                             </>
                         ) : (
-                            'Add Transaction'
+                            initialData ? 'Update Transaction' : 'Add Transaction'
                         )}
                     </button>
+                    {onCancel && (
+                        <button type="button" className="btn btn-ghost btn-lg" onClick={onCancel} disabled={loading}>
+                            Cancel
+                        </button>
+                    )}
                 </div>
             </form>
         </div>

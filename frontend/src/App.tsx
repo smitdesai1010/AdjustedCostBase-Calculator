@@ -4,6 +4,7 @@ import {
     getSecurities, getAccounts, getTransactions, getPositions,
     createSecurity, createAccount, createTransaction,
     deleteSecurity, deleteAccount, deleteTransaction,
+    updateTransaction,
     getExportCsvUrl
 } from './services/api';
 import TransactionForm from './components/TransactionForm';
@@ -20,6 +21,8 @@ function App() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'transactions' | 'positions' | 'setup'>('transactions');
+
+    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
     const loadData = async () => {
         try {
@@ -76,8 +79,13 @@ function App() {
 
     const handleAddTransaction = async (data: Parameters<typeof createTransaction>[0]) => {
         try {
-            await createTransaction(data);
-            await loadData(); // Reload to get updated positions and transaction with calculated values
+            if (editingTransaction) {
+                await updateTransaction(editingTransaction.id, data);
+                setEditingTransaction(null);
+            } else {
+                await createTransaction(data);
+            }
+            await loadData();
         } catch (err) {
             throw err;
         }
@@ -85,7 +93,19 @@ function App() {
 
     const handleDeleteTransaction = async (id: string) => {
         await deleteTransaction(id);
-        await loadData(); // Reload to recalculate subsequent transactions
+        if (editingTransaction?.id === id) {
+            setEditingTransaction(null);
+        }
+        await loadData();
+    };
+
+    const handleEditTransaction = (transaction: Transaction) => {
+        setEditingTransaction(transaction);
+        // Scroll to form on mobile/if needed, though sidebar is sticky
+    };
+
+    const handleCancelEdit = () => {
+        setEditingTransaction(null);
     };
 
     return (
@@ -159,6 +179,7 @@ function App() {
                                     <TransactionTable
                                         transactions={transactions}
                                         onDelete={handleDeleteTransaction}
+                                        onEdit={handleEditTransaction}
                                     />
                                 </div>
                                 <aside className="sidebar">
@@ -166,6 +187,8 @@ function App() {
                                         securities={securities}
                                         accounts={accounts}
                                         onSubmit={handleAddTransaction}
+                                        initialData={editingTransaction}
+                                        onCancel={editingTransaction ? handleCancelEdit : undefined}
                                     />
                                 </aside>
                             </div>

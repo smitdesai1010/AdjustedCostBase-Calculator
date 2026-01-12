@@ -6,8 +6,9 @@
 
 .form-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 1rem;
+    width: 100%;
 }
 
 .form-grid .full-width {
@@ -22,6 +23,8 @@
 
 .form-actions {
     padding-top: 0.5rem;
+    display: flex;
+    gap: 1rem;
 }
 
 .form-actions .btn {
@@ -37,4 +40,11 @@ textarea.input {
     .form-grid {
         grid-template-columns: 1fr;
     }
+}
+
+.input,
+select.input {
+    width: 100%;
+    box-sizing: border-box;
+    max-width: 100%;
 }
