@@ -33,6 +33,26 @@ npm run dev
 
 This starts both the backend API (http://localhost:3000) and frontend (http://localhost:5173).
 
+### Debugging
+
+There are two ways to run the application in debug mode:
+
+**Option 1: VS Code (Recommended)**
+
+1. Open the "Run and Debug" side bar in VS Code (`Ctrl+Shift+D`).
+2. Select **"Full Stack Debug"** from the dropdown.
+3. Press Play (`F5`).
+   - This keeps the backend attached to the debugger (for breakpoints in API/Service logic).
+   - Launches a Chrome instance for frontend debugging.
+
+**Option 2: Terminal**
+
+```bash
+npm run debug
+```
+
+This starts both services concurrently. The backend listens for a debugger on port 9229.
+
 ### Run Tests
 
 ```bash

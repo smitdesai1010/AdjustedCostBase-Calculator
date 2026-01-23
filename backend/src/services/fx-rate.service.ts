@@ -18,7 +18,7 @@ export class FXRateService {
      * Get exchange rate for a specific date and currency pair
      * Uses Bank of Canada as the official source
      */
-    async getRate(date: Date, fromCurrency: string, toCurrency: string): Promise<number> {
+    async getRate(date: string | Date, fromCurrency: string, toCurrency: string): Promise<number> {
         // If same currency, rate is 1
         if (fromCurrency === toCurrency) {
             return 1;
@@ -47,7 +47,7 @@ export class FXRateService {
      * Get rate from cache
      */
     private async getCachedRate(
-        date: Date,
+        date: string | Date,
         fromCurrency: string,
         toCurrency: string
     ): Promise<FXRate | null> {
@@ -70,16 +70,22 @@ export class FXRateService {
         fromCurrency: string,
         toCurrency: string,
         rate: number
-    ): Promise<FXRate> {
-        const fxRate = new FXRate();
-        fxRate.id = uuidv4();
-        fxRate.date = new Date(this.formatDate(date));
-        fxRate.fromCurrency = fromCurrency;
-        fxRate.toCurrency = toCurrency;
-        fxRate.rate = rate;
-        fxRate.source = 'Bank of Canada';
-
-        return await this.fxRateRepository.save(fxRate);
+    ): Promise<void> {
+        await this.fxRateRepository
+            .createQueryBuilder()
+            .insert()
+            .into(FXRate)
+            .values({
+                id: uuidv4(),
+                date: new Date(this.formatDate(date)),
+                fromCurrency,
+                toCurrency,
+                rate,
+                source: 'Bank of Canada',
+                createdAt: new Date()
+            })
+            .orIgnore()
+            .execute();
     }
 
     /**
@@ -87,7 +93,7 @@ export class FXRateService {
      * API docs: https://www.bankofcanada.ca/valet/docs
      */
     private async fetchBankOfCanadaRate(
-        date: Date,
+        date: string | Date,
         fromCurrency: string,
         toCurrency: string
     ): Promise<number> {
@@ -113,12 +119,10 @@ export class FXRateService {
 
         try {
             const url = `https://www.bankofcanada.ca/valet/observations/${seriesName}/json?start_date=${dateStr}&end_date=${dateStr}`;
-
             const response = await fetch(url);
 
             if (!response.ok) {
-                // If exact date not found, try to find the most recent rate before this date
-                return await this.fetchMostRecentRate(date, seriesName, invertRate);
+                throw new Error(`Bank of Canada API returned ${response.status} for ${dateStr}`);
             }
 
             const data = await response.json() as {
@@ -126,8 +130,7 @@ export class FXRateService {
             };
 
             if (!data.observations || data.observations.length === 0) {
-                // No data for this date (weekend/holiday), find most recent
-                return await this.fetchMostRecentRate(date, seriesName, invertRate);
+                throw new Error(`No exchange rate available for ${fromCurrency}/${toCurrency} on ${dateStr}`);
             }
 
             const rateValue = parseFloat(data.observations[0][seriesName].v);
@@ -135,75 +138,15 @@ export class FXRateService {
 
         } catch (error) {
             console.error('Error fetching Bank of Canada rate:', error);
-            // Fallback: try to find most recent cached rate
-            const recent = await this.findMostRecentCachedRate(fromCurrency, toCurrency, date);
-            if (recent) {
-                console.warn(`Using cached rate from ${recent.date} for ${dateStr}`);
-                return recent.rate;
-            }
             throw new Error(`Unable to fetch exchange rate for ${fromCurrency}/${toCurrency} on ${dateStr}`);
         }
     }
 
     /**
-     * Fetch the most recent rate before a given date
-     */
-    private async fetchMostRecentRate(
-        date: Date,
-        seriesName: string,
-        invertRate: boolean
-    ): Promise<number> {
-        // Look back up to 10 days (to cover weekends and holidays)
-        const startDate = new Date(date);
-        startDate.setDate(startDate.getDate() - 10);
-
-        const url = `https://www.bankofcanada.ca/valet/observations/${seriesName}/json?start_date=${this.formatDate(startDate)}&end_date=${this.formatDate(date)}&order_dir=desc`;
-
-        try {
-            const response = await fetch(url);
-
-            if (!response.ok) {
-                throw new Error(`Bank of Canada API error: ${response.status}`);
-            }
-
-            const data = await response.json() as {
-                observations?: Array<{ [key: string]: { v: string } }>;
-            };
-
-            if (!data.observations || data.observations.length === 0) {
-                throw new Error(`No rate data available for ${seriesName}`);
-            }
-
-            const rateValue = parseFloat(data.observations[0][seriesName].v);
-            return invertRate ? 1 / rateValue : rateValue;
-
-        } catch (error) {
-            console.error('Error fetching recent Bank of Canada rate:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Find most recent cached rate before a date
-     */
-    private async findMostRecentCachedRate(
-        fromCurrency: string,
-        toCurrency: string,
-        beforeDate: Date
-    ): Promise<FXRate | null> {
-        return await this.fxRateRepository
-            .createQueryBuilder('rate')
-            .where('rate.fromCurrency = :from', { from: fromCurrency })
-            .andWhere('rate.toCurrency = :to', { to: toCurrency })
-            .andWhere('rate.date <= :date', { date: this.formatDate(beforeDate) })
-            .orderBy('rate.date', 'DESC')
-            .getOne();
-    }
-
-    /**
      * Format date as YYYY-MM-DD for API calls
      */
-    private formatDate(date: Date): string {
+    private formatDate(date: string | Date): string {
+        if (typeof date === 'string') return date.split('T')[0];
         return date.toISOString().split('T')[0];
     }
 

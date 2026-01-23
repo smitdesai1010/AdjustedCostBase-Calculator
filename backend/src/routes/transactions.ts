@@ -87,15 +87,16 @@ router.put('/:id', async (req: Request, res: Response) => {
     try {
         const input: Partial<CreateTransactionInput> = {};
 
-        if (req.body.date) input.date = req.body.date;
-        if (req.body.settlementDate) input.settlementDate = req.body.settlementDate;
-        if (req.body.type) input.type = req.body.type;
-        if (req.body.securityId) input.securityId = req.body.securityId;
-        if (req.body.accountId) input.accountId = req.body.accountId;
+        console.log(`[PUT] Transaction update payload for ${req.params.id}:`, req.body);
+
+        if (req.body.date !== undefined) input.date = req.body.date;
+        if (req.body.settlementDate !== undefined) input.settlementDate = req.body.settlementDate;
+        if (req.body.type !== undefined) input.type = req.body.type;
+        if (req.body.securityId !== undefined) input.securityId = req.body.securityId;
+        if (req.body.accountId !== undefined) input.accountId = req.body.accountId;
         if (req.body.quantity !== undefined) input.quantity = parseFloat(req.body.quantity);
         if (req.body.price !== undefined) input.price = parseFloat(req.body.price);
         if (req.body.fees !== undefined) input.fees = parseFloat(req.body.fees);
-        if (req.body.ratio !== undefined) input.ratio = parseFloat(req.body.ratio);
         if (req.body.ratio !== undefined) input.ratio = parseFloat(req.body.ratio);
         if (req.body.notes !== undefined) input.notes = req.body.notes;
         if (req.body.fxRate !== undefined) input.fxRate = parseFloat(req.body.fxRate);
