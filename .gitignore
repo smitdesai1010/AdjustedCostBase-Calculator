@@ -3,3 +3,4 @@ dist/
 *.db
 .env
 coverage/
+/.gemini/antigravity/brain
