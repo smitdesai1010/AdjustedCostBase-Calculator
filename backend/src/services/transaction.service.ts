@@ -8,6 +8,8 @@ import { acbCalculator, ACBCalculationInput } from './acb-calculator.service.js'
 import { fxRateService } from './fx-rate.service.js';
 import { superficialLossService } from './superficial-loss.service.js';
 import { v4 as uuidv4 } from 'uuid';
+import { parseLocalDate } from '../utils/index.js';
+
 
 /**
  * Input for creating a new transaction
@@ -66,7 +68,7 @@ export class TransactionService {
         const position = await this.getOrCreatePosition(input.securityId, input.accountId);
 
         // Get FX rate if needed
-        const settlementDate = new Date(input.settlementDate ?? input.date);
+        const settlementDate = parseLocalDate(input.settlementDate ?? input.date);
         let fxRate = 1;
 
         if (input.fxRate !== undefined) {
@@ -102,8 +104,9 @@ export class TransactionService {
         // Create transaction record
         const transaction = new Transaction();
         transaction.id = uuidv4();
-        transaction.date = new Date(input.date);
+        transaction.date = parseLocalDate(input.date);
         transaction.settlementDate = settlementDate;
+
         transaction.type = input.type;
         transaction.securityId = input.securityId;
         transaction.accountId = input.accountId;
