@@ -45,6 +45,7 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
     const [fxRate, setFxRate] = useState<number | null>(null);
     const [manualFxRate, setManualFxRate] = useState('');
     const [feeCurrency, setFeeCurrency] = useState<'CAD' | 'USD' | string>('CAD'); // Default to CAD initially, will update based on security
+    const [showNotes, setShowNotes] = useState(false);
 
     // Sync settlement date if checkbox is checked
     useEffect(() => {
@@ -110,9 +111,12 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                 setSettlementSameAsTrade(traded === setd);
             }
 
-            // Initialize FX
             if (initialData.fxRate && security && security.currency !== 'CAD') {
                 setManualFxRate(initialData.fxRate.toString());
+            }
+
+            if (initialData.notes) {
+                setShowNotes(true);
             }
 
             // Guess fee currency? Backend stores fees in CAD.
@@ -208,10 +212,6 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
 
     return (
         <div className="transaction-form card">
-            <div className="card-header">
-                <h2 className="card-title">{initialData ? 'Edit Transaction' : 'Add Transaction'}</h2>
-            </div>
-
             <form onSubmit={handleSubmit}>
                 {error && (
                     <div className="alert alert-error mb-4">
@@ -344,7 +344,7 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                                 <label htmlFor="price">
                                     {formData.type === 'roc' ? 'RoC per Share' : 'Price per Share'}
                                 </label>
-                                <div style={{ position: 'relative' }}>
+                                <div className="input-with-suffix">
                                     <input
                                         type="number"
                                         id="price"
@@ -356,17 +356,9 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                                         min="0"
                                         placeholder="0.00"
                                         required
-                                        style={{ paddingRight: '3rem' }}
                                     />
                                     {selectedSecurity && (
-                                        <span style={{
-                                            position: 'absolute',
-                                            right: '0.75rem',
-                                            top: '50%',
-                                            transform: 'translateY(-50%)',
-                                            color: 'var(--color-text-muted)',
-                                            fontSize: '0.875rem'
-                                        }}>
+                                        <span className="input-suffix">
                                             {selectedSecurity.currency}
                                         </span>
                                     )}
@@ -400,7 +392,7 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
 
                     <div className="input-group">
                         <label htmlFor="fees">Commission/Fees</label>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div className="input-with-suffix">
                             <input
                                 type="number"
                                 id="fees"
@@ -411,12 +403,10 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                                 step="0.01"
                                 min="0"
                                 placeholder="0.00"
-                                style={{ flex: 1 }}
                             />
                             {isForeign && (
                                 <select
-                                    className="input"
-                                    style={{ width: '80px', padding: '0.5rem' }}
+                                    className="input-suffix-select"
                                     value={feeCurrency}
                                     onChange={(e) => setFeeCurrency(e.target.value)}
                                 >
@@ -425,11 +415,35 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                                 </select>
                             )}
                             {!isForeign && (
-                                <span className="input" style={{ width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--color-background-subtle)' }}>
+                                <span className="input-suffix">
                                     CAD
                                 </span>
                             )}
                         </div>
+                    </div>
+
+                    <div className="input-group note-toggle-group">
+                        <button
+                            type="button"
+                            className="btn btn-ghost btn-note-toggle"
+                            onClick={() => setShowNotes(!showNotes)}
+                        >
+                            {showNotes ? (
+                                <>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
+                                        <path d="M18 15l-6-6-6 6" />
+                                    </svg>
+                                    Hide Note
+                                </>
+                            ) : (
+                                <>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
+                                        <path d="M12 5v14M5 12h14" />
+                                    </svg>
+                                    Add Note
+                                </>
+                            )}
+                        </button>
                     </div>
 
                     {isForeign && (
@@ -450,18 +464,20 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                         </div>
                     )}
 
-                    <div className="input-group full-width">
-                        <label htmlFor="notes">Notes</label>
-                        <textarea
-                            id="notes"
-                            name="notes"
-                            className="input"
-                            value={formData.notes}
-                            onChange={handleChange}
-                            rows={2}
-                            placeholder="Optional notes..."
-                        />
-                    </div>
+                    {showNotes && (
+                        <div className="input-group full-width">
+                            <label htmlFor="notes">Notes</label>
+                            <textarea
+                                id="notes"
+                                name="notes"
+                                className="input"
+                                value={formData.notes}
+                                onChange={handleChange}
+                                rows={2}
+                                placeholder="Optional notes..."
+                            />
+                        </div>
+                    )}
                 </div>
 
                 <div className="form-actions">

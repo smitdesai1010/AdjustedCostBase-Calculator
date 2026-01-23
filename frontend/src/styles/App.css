@@ -93,10 +93,10 @@
 }
 
 .transactions-view {
-    display: grid;
-    grid-template-columns: 1fr 400px;
+    display: flex;
+    flex-direction: column;
     gap: 2rem;
-    align-items: start;
+    align-items: stretch;
 }
 
 .main-content {
@@ -104,8 +104,7 @@
 }
 
 .sidebar {
-    position: sticky;
-    top: 80px;
+    width: 100%;
 }
 
 /* Loading State */

@@ -123,7 +123,7 @@ export class TransactionService {
         transaction.ratio = input.ratio;
         transaction.newSecurityId = input.newSecurityId;
         transaction.notes = input.notes;
-        transaction.calculationDetails = result.calculationDetails as Record<string, unknown>;
+        transaction.calculationDetails = result.calculationDetails as unknown as Record<string, unknown>;
         transaction.flags = [];
 
         // Check for superficial loss
@@ -183,7 +183,7 @@ export class TransactionService {
 
         return await this.transactionRepository.find({
             where,
-            order: { date: 'ASC', createdAt: 'ASC' },
+            order: { date: 'DESC', createdAt: 'DESC' },
             relations: ['security', 'account']
         });
     }
@@ -316,7 +316,7 @@ export class TransactionService {
             txn.sharesBefore = currentShares;
             txn.sharesAfter = result.newShares;
             txn.capitalGain = result.capitalGain;
-            txn.calculationDetails = result.calculationDetails as Record<string, unknown>;
+            txn.calculationDetails = result.calculationDetails as unknown as Record<string, unknown>;
 
             // Check superficial loss
             if (txn.type === 'sell' && result.capitalGain !== undefined && result.capitalGain < 0) {

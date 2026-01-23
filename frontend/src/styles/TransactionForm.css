@@ -48,3 +48,22 @@ select.input {
     box-sizing: border-box;
     max-width: 100%;
 }
+
+.note-toggle-group {
+    align-items: center;
+    justify-content: flex-end;
+    /* Vertical alignment with inputs */
+    padding-bottom: 2px;
+}
+
+.btn-note-toggle {
+    width: auto !important;
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    color: var(--color-accent-primary) !important;
+}
+
+.btn-note-toggle:hover {
+    background: var(--color-bg-tertiary) !important;
+    transform: translateY(-1px);
+}

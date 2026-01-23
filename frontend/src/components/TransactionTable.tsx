@@ -102,89 +102,99 @@ function TransactionTable({ transactions, onDelete, onEdit }: TransactionTablePr
                         </tr>
                     </thead>
                     <tbody>
-                        {transactions.map(txn => {
-                            const typeInfo = TYPE_LABELS[txn.type] || { label: txn.type.toUpperCase(), className: 'badge-info' };
-                            const hasSuperficialLoss = txn.flags?.includes('superficial_loss');
-                            const isExpanded = expandedId === txn.id;
+                        {[...transactions]
+                            .sort((a, b) => {
+                                const dateA = new Date(a.date).getTime();
+                                const dateB = new Date(b.date).getTime();
+                                if (dateA !== dateB) return dateB - dateA;
+                                // If same date, use createdAt if available, otherwise fallback to index/id comparison
+                                const createA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                                const createB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                                return createB - createA;
+                            })
+                            .map(txn => {
+                                const typeInfo = TYPE_LABELS[txn.type] || { label: txn.type.toUpperCase(), className: 'badge-info' };
+                                const hasSuperficialLoss = txn.flags?.includes('superficial_loss');
+                                const isExpanded = expandedId === txn.id;
 
-                            // Calculate Amount (Cash Flow approx)
-                            // Ideally we'd have this from backend or calculate it: (Quantity * Price * FX) + Fees?
-                            // Or just delta ACB? For now let's show Price * Shares * FX
-                            const amount = Math.abs(txn.quantity * txn.price * txn.fxRate);
+                                // Calculate Amount (Cash Flow approx)
+                                // Ideally we'd have this from backend or calculate it: (Quantity * Price * FX) + Fees?
+                                // Or just delta ACB? For now let's show Price * Shares * FX
+                                const amount = Math.abs(txn.quantity * txn.price * txn.fxRate);
 
-                            // Calculate Change in ACB
-                            const deltaAcb = txn.acbAfter - txn.acbBefore;
+                                // Calculate Change in ACB
+                                const deltaAcb = txn.acbAfter - txn.acbBefore;
 
-                            // ACB per share
-                            const acbPerShare = txn.sharesAfter !== 0 ? txn.acbAfter / txn.sharesAfter : 0;
+                                // ACB per share
+                                const acbPerShare = txn.sharesAfter !== 0 ? txn.acbAfter / txn.sharesAfter : 0;
 
-                            return (
-                                <>
-                                    <tr
-                                        key={txn.id}
-                                        className={`${hasSuperficialLoss ? 'row-warning' : ''} ${isExpanded ? 'row-expanded' : ''}`}
-                                    >
-                                        <td>{formatDate(txn.date)}</td>
-                                        <td>
-                                            <span className={`badge ${typeInfo.className}`}>
-                                                {typeInfo.label}
-                                            </span>
-                                        </td>
-                                        <td className="text-right font-mono">{formatCurrency(amount)}</td>
-                                        <td className="text-right font-mono">{formatNumber(txn.quantity, 4)}</td>
-                                        <td className="text-right font-mono">
-                                            {formatCurrency(txn.price)}
-                                            {txn.priceCurrency !== 'CAD' && (
-                                                <span className="text-xs text-muted ml-1">{txn.priceCurrency}</span>
-                                            )}
-                                        </td>
-                                        <td className="text-right font-mono">{formatCurrency(txn.fees)}</td>
-                                        <td className={`text-right font-mono ${txn.capitalGain !== undefined && txn.capitalGain !== null ? (txn.capitalGain >= 0 ? 'text-success' : 'text-error') : ''}`}>
-                                            {txn.capitalGain !== undefined && txn.capitalGain !== null
-                                                ? formatCurrency(txn.capitalGain)
-                                                : '-'}
-                                        </td>
-                                        <td className="text-right font-mono">{formatNumber(txn.sharesAfter, 4)}</td>
-                                        <td className="text-right font-mono">{formatCurrency(deltaAcb)}</td>
-                                        <td className="text-right font-mono">{formatCurrency(txn.acbAfter)}</td>
-                                        <td className="text-right font-mono">{formatCurrency(acbPerShare)}</td>
-                                        <td>
-                                            <div className="row-actions">
-                                                <button
-                                                    className="btn btn-ghost btn-sm"
-                                                    onClick={() => setExpandedId(isExpanded ? null : txn.id)}
-                                                    title="View calculation details"
-                                                >
-                                                    {isExpanded ? '▲' : '▼'}
-                                                </button>
-                                                <button
-                                                    className="btn btn-ghost btn-sm"
-                                                    onClick={() => onEdit(txn)}
-                                                    title="Edit transaction"
-                                                >
-                                                    ✎
-                                                </button>
-                                                <button
-                                                    className="btn btn-ghost btn-sm text-error"
-                                                    onClick={() => handleDelete(txn.id)}
-                                                    disabled={deletingId === txn.id}
-                                                    title="Delete transaction"
-                                                >
-                                                    {deletingId === txn.id ? '...' : '✕'}
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {isExpanded && (
-                                        <tr key={`${txn.id}-details`} className="details-row">
-                                            <td colSpan={12}>
-                                                <CalculationBreakdown transaction={txn} />
+                                return (
+                                    <>
+                                        <tr
+                                            key={txn.id}
+                                            className={`${hasSuperficialLoss ? 'row-warning' : ''} ${isExpanded ? 'row-expanded' : ''}`}
+                                        >
+                                            <td>{formatDate(txn.date)}</td>
+                                            <td>
+                                                <span className={`badge ${typeInfo.className}`}>
+                                                    {typeInfo.label}
+                                                </span>
+                                            </td>
+                                            <td className="text-right font-mono">{formatCurrency(amount)}</td>
+                                            <td className="text-right font-mono">{formatNumber(txn.quantity, 4)}</td>
+                                            <td className="text-right font-mono">
+                                                {formatCurrency(txn.price)}
+                                                {txn.priceCurrency !== 'CAD' && (
+                                                    <span className="text-xs text-muted ml-1">{txn.priceCurrency}</span>
+                                                )}
+                                            </td>
+                                            <td className="text-right font-mono">{formatCurrency(txn.fees)}</td>
+                                            <td className={`text-right font-mono ${txn.capitalGain !== undefined && txn.capitalGain !== null ? (txn.capitalGain >= 0 ? 'text-success' : 'text-error') : ''}`}>
+                                                {txn.capitalGain !== undefined && txn.capitalGain !== null
+                                                    ? formatCurrency(txn.capitalGain)
+                                                    : '-'}
+                                            </td>
+                                            <td className="text-right font-mono">{formatNumber(txn.sharesAfter, 4)}</td>
+                                            <td className="text-right font-mono">{formatCurrency(deltaAcb)}</td>
+                                            <td className="text-right font-mono">{formatCurrency(txn.acbAfter)}</td>
+                                            <td className="text-right font-mono">{formatCurrency(acbPerShare)}</td>
+                                            <td>
+                                                <div className="row-actions">
+                                                    <button
+                                                        className="btn btn-ghost btn-sm"
+                                                        onClick={() => setExpandedId(isExpanded ? null : txn.id)}
+                                                        title="View calculation details"
+                                                    >
+                                                        {isExpanded ? '▲' : '▼'}
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-ghost btn-sm"
+                                                        onClick={() => onEdit(txn)}
+                                                        title="Edit transaction"
+                                                    >
+                                                        ✎
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-ghost btn-sm text-error"
+                                                        onClick={() => handleDelete(txn.id)}
+                                                        disabled={deletingId === txn.id}
+                                                        title="Delete transaction"
+                                                    >
+                                                        {deletingId === txn.id ? '...' : '✕'}
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
-                                    )}
-                                </>
-                            );
-                        })}
+                                        {isExpanded && (
+                                            <tr key={`${txn.id}-details`} className="details-row">
+                                                <td colSpan={12}>
+                                                    <CalculationBreakdown transaction={txn} />
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </>
+                                );
+                            })}
                     </tbody>
                 </table>
             </div>

@@ -175,13 +175,6 @@ function App() {
                     <>
                         {activeTab === 'transactions' && (
                             <div className="transactions-view">
-                                <div className="main-content">
-                                    <TransactionTable
-                                        transactions={transactions}
-                                        onDelete={handleDeleteTransaction}
-                                        onEdit={handleEditTransaction}
-                                    />
-                                </div>
                                 <aside className="sidebar">
                                     <TransactionForm
                                         securities={securities}
@@ -191,6 +184,13 @@ function App() {
                                         onCancel={editingTransaction ? handleCancelEdit : undefined}
                                     />
                                 </aside>
+                                <div className="main-content">
+                                    <TransactionTable
+                                        transactions={transactions}
+                                        onDelete={handleDeleteTransaction}
+                                        onEdit={handleEditTransaction}
+                                    />
+                                </div>
                             </div>
                         )}
 

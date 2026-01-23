@@ -38,6 +38,7 @@ export interface Transaction {
     ratio?: number;
     notes?: string;
     flags?: string[];
+    createdAt?: string;
     calculationDetails?: {
         type: string;
         steps: Array<{
