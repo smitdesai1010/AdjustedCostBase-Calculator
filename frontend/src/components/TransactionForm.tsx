@@ -440,20 +440,22 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                         </div>
                     )}
 
-                    {showNotes && (
-                        <div className="input-group full-width">
-                            <label htmlFor="notes">Notes</label>
-                            <textarea
-                                id="notes"
-                                name="notes"
-                                className="input"
-                                value={formData.notes}
-                                onChange={handleChange}
-                                rows={2}
-                                placeholder="Optional notes..."
-                            />
+                    <div className={`notes-container full-width ${showNotes ? 'is-visible' : ''}`}>
+                        <div className="notes-content">
+                            <div className="input-group">
+                                <label htmlFor="notes">Notes</label>
+                                <textarea
+                                    id="notes"
+                                    name="notes"
+                                    className="input"
+                                    value={formData.notes}
+                                    onChange={handleChange}
+                                    rows={2}
+                                    placeholder="Optional notes..."
+                                />
+                            </div>
                         </div>
-                    )}
+                    </div>
                 </div>
 
                 <div className="form-actions">

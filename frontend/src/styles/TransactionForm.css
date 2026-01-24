@@ -13,6 +13,25 @@
     scrollbar-gutter: stable;
 }
 
+/* Notes Animation Container */
+.notes-container {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease-out, opacity 0.3s ease-out, margin-top 0.3s ease-out;
+    opacity: 0;
+    overflow: hidden;
+}
+
+.notes-container.is-visible {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    margin-top: 0.5rem;
+}
+
+.notes-content {
+    min-height: 0;
+}
+
 .form-grid .full-width {
     grid-column: 1 / -1;
 }
