@@ -6,9 +6,11 @@
 
 .form-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 1rem;
     width: 100%;
+    /* Prevent layout jump when vertical scrollbar appears */
+    scrollbar-gutter: stable;
 }
 
 .form-grid .full-width {
@@ -22,13 +24,28 @@
 }
 
 .form-actions {
-    padding-top: 0.5rem;
+    padding-top: 1rem;
     display: flex;
     gap: 1rem;
+    width: 100%;
 }
 
-.form-actions .btn {
-    width: 100%;
+.btn-main-action {
+    flex: 7;
+}
+
+.btn-note-toggle {
+    flex: 3;
+    background: var(--color-bg-tertiary) !important;
+    border: 1px solid var(--color-border) !important;
+    color: var(--color-text-primary) !important;
+    white-space: nowrap;
+}
+
+.btn-note-toggle:hover {
+    background: var(--color-bg-elevated) !important;
+    border-color: var(--color-border-light) !important;
+    transform: translateY(-1px);
 }
 
 textarea.input {
@@ -49,21 +66,10 @@ select.input {
     max-width: 100%;
 }
 
+/* Cleaned up legacy note-toggle styles */
 .note-toggle-group {
     align-items: center;
     justify-content: flex-end;
     /* Vertical alignment with inputs */
     padding-bottom: 2px;
-}
-
-.btn-note-toggle {
-    width: auto !important;
-    font-size: 1rem !important;
-    font-weight: 600 !important;
-    color: var(--color-accent-primary) !important;
-}
-
-.btn-note-toggle:hover {
-    background: var(--color-bg-tertiary) !important;
-    transform: translateY(-1px);
 }

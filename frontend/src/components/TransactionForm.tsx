@@ -422,30 +422,6 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                         </div>
                     </div>
 
-                    <div className="input-group note-toggle-group">
-                        <button
-                            type="button"
-                            className="btn btn-ghost btn-note-toggle"
-                            onClick={() => setShowNotes(!showNotes)}
-                        >
-                            {showNotes ? (
-                                <>
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
-                                        <path d="M18 15l-6-6-6 6" />
-                                    </svg>
-                                    Hide Note
-                                </>
-                            ) : (
-                                <>
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
-                                        <path d="M12 5v14M5 12h14" />
-                                    </svg>
-                                    Add Note
-                                </>
-                            )}
-                        </button>
-                    </div>
-
                     {isForeign && (
                         <div className="input-group">
                             <label htmlFor="fxRate">FX Rate ({selectedSecurity.currency} to CAD)</label>
@@ -481,7 +457,7 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                 </div>
 
                 <div className="form-actions">
-                    <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
+                    <button type="submit" className="btn btn-primary btn-lg btn-main-action" disabled={loading}>
                         {loading ? (
                             <>
                                 <span className="spinner"></span>
@@ -489,6 +465,27 @@ function TransactionForm({ securities, accounts, onSubmit, initialData, onCancel
                             </>
                         ) : (
                             initialData ? 'Update Transaction' : 'Add Transaction'
+                        )}
+                    </button>
+                    <button
+                        type="button"
+                        className="btn btn-note-toggle"
+                        onClick={() => setShowNotes(!showNotes)}
+                    >
+                        {showNotes ? (
+                            <>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
+                                    <path d="M18 15l-6-6-6 6" />
+                                </svg>
+                                Hide Note
+                            </>
+                        ) : (
+                            <>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
+                                    <path d="M12 5v14M5 12h14" />
+                                </svg>
+                                Add Note
+                            </>
                         )}
                     </button>
                     {onCancel && (
