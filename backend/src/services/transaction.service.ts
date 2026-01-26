@@ -1,4 +1,4 @@
-import { Repository, LessThanOrEqual, MoreThan } from 'typeorm';
+import { Repository, LessThanOrEqual, LessThan, MoreThan, MoreThanOrEqual } from 'typeorm';
 import { Transaction, TransactionType } from '../entities/Transaction.js';
 import { Position } from '../entities/Position.js';
 import { Security } from '../entities/Security.js';
@@ -50,6 +50,57 @@ export class TransactionService {
     }
 
     /**
+     * Get position state (shares and ACB) at a specific date
+     * Returns the state BEFORE any transactions on that date
+     */
+    private async getPositionStateAtDate(
+        securityId: string,
+        accountId: string,
+        date: Date
+    ): Promise<{ shares: number; acb: number }> {
+        // Find the most recent transaction strictly before this date
+        const priorTransaction = await this.transactionRepository.findOne({
+            where: {
+                securityId,
+                accountId,
+                date: LessThanOrEqual(date)
+            },
+            order: { date: 'DESC', createdAt: 'DESC' }
+        });
+
+        // If there's a prior transaction on a date before this one, use its state
+        if (priorTransaction && new Date(priorTransaction.date).getTime() < date.getTime()) {
+            return {
+                shares: Number(priorTransaction.sharesAfter),
+                acb: Number(priorTransaction.acbAfter)
+            };
+        }
+
+        // If the prior transaction is on the same date, find the one before it
+        if (priorTransaction && new Date(priorTransaction.date).getTime() === date.getTime()) {
+            // Get the transaction before this date
+            const earlierTransaction = await this.transactionRepository.findOne({
+                where: {
+                    securityId,
+                    accountId,
+                    date: LessThanOrEqual(new Date(date.getTime() - 86400000)) // Day before
+                },
+                order: { date: 'DESC', createdAt: 'DESC' }
+            });
+
+            if (earlierTransaction) {
+                return {
+                    shares: Number(earlierTransaction.sharesAfter),
+                    acb: Number(earlierTransaction.acbAfter)
+                };
+            }
+        }
+
+        // No prior transactions - start from zero
+        return { shares: 0, acb: 0 };
+    }
+
+    /**
      * Create a new transaction with automatic ACB calculation
      */
     async createTransaction(input: CreateTransactionInput): Promise<Transaction> {
@@ -64,7 +115,17 @@ export class TransactionService {
             throw new Error(`Account not found: ${input.accountId}`);
         }
 
-        // Get current position
+        // Parse the transaction date
+        const transactionDate = parseLocalDate(input.date);
+        
+        // Get position state AT the transaction date (not current position)
+        const positionState = await this.getPositionStateAtDate(
+            input.securityId,
+            input.accountId,
+            transactionDate
+        );
+
+        // Get or create the position record (for later updates)
         const position = await this.getOrCreatePosition(input.securityId, input.accountId);
 
         // Get FX rate if needed
@@ -82,7 +143,7 @@ export class TransactionService {
             }
         }
 
-        // Prepare ACB calculation input
+        // Prepare ACB calculation input using position state at date
         const calcInput: ACBCalculationInput = {
             transactionType: input.type,
             quantity: input.quantity,
@@ -90,8 +151,8 @@ export class TransactionService {
             priceCurrency: security.currency,
             fees: input.fees ?? 0,
             fxRate,
-            currentShares: Number(position.shares),
-            currentAcb: Number(position.totalAcb),
+            currentShares: positionState.shares,
+            currentAcb: positionState.acb,
             ratio: input.ratio,
             rocPerShare: input.rocPerShare,
             newSecurityAcbPercent: input.newSecurityAcbPercent,
@@ -104,7 +165,7 @@ export class TransactionService {
         // Create transaction record
         const transaction = new Transaction();
         transaction.id = uuidv4();
-        transaction.date = parseLocalDate(input.date);
+        transaction.date = transactionDate;
         transaction.settlementDate = settlementDate;
 
         transaction.type = input.type;
@@ -115,9 +176,9 @@ export class TransactionService {
         transaction.priceCurrency = security.currency;
         transaction.fees = input.fees ?? 0;
         transaction.fxRate = fxRate;
-        transaction.acbBefore = Number(position.totalAcb);
+        transaction.acbBefore = positionState.acb;
         transaction.acbAfter = result.newAcb;
-        transaction.sharesBefore = Number(position.shares);
+        transaction.sharesBefore = positionState.shares;
         transaction.sharesAfter = result.newShares;
         transaction.capitalGain = result.capitalGain;
         transaction.ratio = input.ratio;
@@ -144,12 +205,29 @@ export class TransactionService {
         // Save transaction
         await this.transactionRepository.save(transaction);
 
-        // Update position
-        position.shares = result.newShares;
-        position.totalAcb = result.newAcb;
-        await this.positionRepository.save(position);
+        // Check if there are any transactions after this one that need recalculation
+        const laterTransactions = await this.transactionRepository.find({
+            where: {
+                securityId: input.securityId,
+                accountId: input.accountId,
+                date: MoreThan(transactionDate)
+            },
+            take: 1
+        });
 
-        return transaction;
+        if (laterTransactions.length > 0) {
+            // There are transactions after this one - recalculate the entire chain from this date
+            await this.recalculateTransactions(input.securityId, input.accountId, transactionDate);
+        } else {
+            // This is the latest transaction - just update the position
+            position.shares = result.newShares;
+            position.totalAcb = result.newAcb;
+            await this.positionRepository.save(position);
+        }
+
+        // Return the updated transaction (refetch to get recalculated values)
+        const updatedTransaction = await this.transactionRepository.findOne({ where: { id: transaction.id } });
+        return updatedTransaction ?? transaction;
     }
 
     /**
@@ -264,30 +342,25 @@ export class TransactionService {
         accountId: string,
         fromDate: Date
     ): Promise<void> {
-        // Get position state before the date
-        const priorTransactions = await this.transactionRepository.find({
+        // Find the most recent transaction strictly before the fromDate
+        const lastPrior = await this.transactionRepository.findOne({
             where: {
                 securityId,
                 accountId,
-                date: LessThanOrEqual(fromDate)
+                date: LessThan(fromDate)
             },
             order: { date: 'DESC', createdAt: 'DESC' }
         });
 
-        // Find the most recent transaction before our date
-        const lastPrior = priorTransactions.find(t =>
-            new Date(t.date).getTime() < fromDate.getTime()
-        );
+        let currentShares = lastPrior ? Number(lastPrior.sharesAfter) : 0;
+        let currentAcb = lastPrior ? Number(lastPrior.acbAfter) : 0;
 
-        let currentShares = lastPrior?.sharesAfter ?? 0;
-        let currentAcb = lastPrior?.acbAfter ?? 0;
-
-        // Get all transactions from the date forward
+        // Get all transactions from the date forward (including the date itself)
         const transactions = await this.transactionRepository.find({
             where: {
                 securityId,
                 accountId,
-                date: MoreThan(new Date(fromDate.getTime() - 1))
+                date: MoreThanOrEqual(fromDate)
             },
             order: { date: 'ASC', createdAt: 'ASC' }
         });
