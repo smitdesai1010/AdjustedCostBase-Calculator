@@ -92,6 +92,7 @@ function TransactionTable({ transactions, onDelete, onEdit }: TransactionTablePr
                             <th className="text-right">Amount</th>
                             <th className="text-right">Shares</th>
                             <th className="text-right">Price</th>
+                            <th className="text-right">Price (CAD)</th>
                             <th className="text-right">Comm.</th>
                             <th className="text-right">Gain/Loss</th>
                             <th className="text-right">Share Bal</th>
@@ -148,6 +149,7 @@ function TransactionTable({ transactions, onDelete, onEdit }: TransactionTablePr
                                                     <span className="text-xs text-muted ml-1">{txn.priceCurrency}</span>
                                                 )}
                                             </td>
+                                            <td className="text-right font-mono">{formatCurrency(txn.price * txn.fxRate)}</td>
                                             <td className="text-right font-mono">{formatCurrency(txn.fees)}</td>
                                             <td className={`text-right font-mono ${txn.capitalGain !== undefined && txn.capitalGain !== null ? (txn.capitalGain >= 0 ? 'text-success' : 'text-error') : ''}`}>
                                                 {txn.capitalGain !== undefined && txn.capitalGain !== null
@@ -187,7 +189,7 @@ function TransactionTable({ transactions, onDelete, onEdit }: TransactionTablePr
                                         </tr>
                                         {isExpanded && (
                                             <tr key={`${txn.id}-details`} className="details-row">
-                                                <td colSpan={12}>
+                                                <td colSpan={13}>
                                                     <CalculationBreakdown transaction={txn} />
                                                 </td>
                                             </tr>
